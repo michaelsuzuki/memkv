@@ -53,8 +53,9 @@ class Server(object):
         self.in_test = in_test
 
     async def run(self):
-        server = asyncio.start_server(self.run_io_loop, port=self.port)
-        await server.serve_forever()
+        server = await asyncio.start_server(self.run_io_loop, host="127.0.0.1", port=self.port)
+        async with server:
+            await server.serve_forever()
 
     def execute_get(self, cmd: pb2.GetCommand) -> pb2.Response:
         with ReadLock(self.kv_rw_lock):
