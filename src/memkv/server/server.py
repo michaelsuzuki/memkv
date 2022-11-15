@@ -5,9 +5,9 @@ from functools import partial, reduce
 from typing import Final, Optional
 
 import memkv.protocol.memkv_pb2 as pb2
-from memkv.protocol.util import (HEADER_SIZE, MessageWrapper, construct_header_and_data,
-                                 construct_message, decode_header,
-                                 new_message_wrapper)
+from memkv.protocol.util import (HEADER_SIZE, MessageWrapper,
+                                 construct_header_and_data, construct_message,
+                                 decode_header, new_message_wrapper)
 from memkv.server.locks import ReaderWriterLock, ReadLock, WriteLock
 
 KEY_COUNT_METRIC: Final[str] = "key_count"
@@ -100,17 +100,17 @@ class Server(object):
             if cmd.get_key_count:
                 metrics.key_count = len(self.key_value_store)
 
-            if cmd.get_total_store_size and TOTAL_STORE_SIZE_METRIC in self.metrics:
-                metrics.total_store_size = self.metrics[TOTAL_STORE_SIZE_METRIC]
+            if cmd.get_total_store_size and TOTAL_STORE_SIZE_METRIC in self.metrics.metrics:
+                metrics.total_store_size = self.metrics.get(TOTAL_STORE_SIZE_METRIC)
 
-            if cmd.get_get_command_count and GET_COMMAND_KEYS_ACCESSED_METRIC in self.metrics:
-                metrics.get_count = self.metrics[GET_COMMAND_KEYS_ACCESSED_METRIC]
+            if cmd.get_get_command_count and GET_COMMAND_KEYS_ACCESSED_METRIC in self.metrics.metrics:
+                metrics.get_count = self.metrics.get(GET_COMMAND_KEYS_ACCESSED_METRIC)
 
-            if cmd.get_set_command_count and SET_COMMAND_KEYS_UPDATED_METRIC in self.metrics:
-                metrics.set_count = self.metrics[SET_COMMAND_KEYS_UPDATED_METRIC]
+            if cmd.get_set_command_count and SET_COMMAND_KEYS_UPDATED_METRIC in self.metrics.metrics:
+                metrics.set_count = self.metrics.get(SET_COMMAND_KEYS_UPDATED_METRIC)
 
-            if cmd.get_delete_command_count and KEYS_DELETED_METRIC in self.metrics:
-                metrics.delete_count = self.metrics[KEYS_DELETED_METRIC]
+            if cmd.get_delete_command_count and KEYS_DELETED_METRIC in self.metrics.metrics:
+                metrics.delete_count = self.metrics.get(KEYS_DELETED_METRIC)
         return pb2.Response(status="OK", message="OK", metrics=metrics)
 
     async def run_io_loop(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):

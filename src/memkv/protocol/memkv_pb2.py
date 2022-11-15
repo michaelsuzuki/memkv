@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0bmemkv.proto\x12\x05memkv\"\x1a\n\nGetCommand\x12\x0c\n\x04keys\x18\x01 \x03(\t\"1\n\nSetCommand\x12#\n\nkey_values\x18\x01 \x03(\x0b\x32\x0f.memkv.KeyValue\"\x1d\n\rDeleteCommand\x12\x0c\n\x04keys\x18\x01 \x03(\t\"&\n\x08KeyValue\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c\"y\n\x0eMetricsCommand\x12\x11\n\tkey_count\x18\x01 \x01(\x03\x12\x18\n\x10total_items_size\x18\x02 \x01(\x03\x12\x11\n\tget_count\x18\x03 \x01(\x03\x12\x11\n\tset_count\x18\x04 \x01(\x03\x12\x14\n\x0c\x64\x65lete_count\x18\x05 \x01(\x03\"3\n\x0cKeyValueList\x12#\n\nkey_values\x18\x01 \x03(\x0b\x32\x0f.memkv.KeyValue\"\x17\n\x07KeyList\x12\x0c\n\x04keys\x18\x01 \x03(\t\"\xad\x01\n\x08Response\x12\x0e\n\x06status\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\x12&\n\x07kv_list\x18\x03 \x01(\x0b\x32\x13.memkv.KeyValueListH\x00\x12(\n\x07metrics\x18\x04 \x01(\x0b\x32\x15.memkv.MetricsCommandH\x00\x12\"\n\x08key_list\x18\x05 \x01(\x0b\x32\x0e.memkv.KeyListH\x00\x42\n\n\x08\x63ontentsb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0bmemkv.proto\x12\x05memkv\"\x1a\n\nGetCommand\x12\x0c\n\x04keys\x18\x01 \x03(\t\"1\n\nSetCommand\x12#\n\nkey_values\x18\x01 \x03(\x0b\x32\x0f.memkv.KeyValue\"\x1d\n\rDeleteCommand\x12\x0c\n\x04keys\x18\x01 \x03(\t\"&\n\x08KeyValue\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c\"\xa5\x01\n\x0eMetricsCommand\x12\x15\n\rget_key_count\x18\x01 \x01(\x08\x12\x1c\n\x14get_total_store_size\x18\x02 \x01(\x08\x12\x1d\n\x15get_get_command_count\x18\x03 \x01(\x08\x12\x1d\n\x15get_set_command_count\x18\x04 \x01(\x08\x12 \n\x18get_delete_command_count\x18\x05 \x01(\x08\"z\n\x0fMetricsResponse\x12\x11\n\tkey_count\x18\x01 \x01(\x03\x12\x18\n\x10total_store_size\x18\x02 \x01(\x03\x12\x11\n\tget_count\x18\x03 \x01(\x03\x12\x11\n\tset_count\x18\x04 \x01(\x03\x12\x14\n\x0c\x64\x65lete_count\x18\x05 \x01(\x03\"3\n\x0cKeyValueList\x12#\n\nkey_values\x18\x01 \x03(\x0b\x32\x0f.memkv.KeyValue\"\x17\n\x07KeyList\x12\x0c\n\x04keys\x18\x01 \x03(\t\"\xae\x01\n\x08Response\x12\x0e\n\x06status\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\x12&\n\x07kv_list\x18\x03 \x01(\x0b\x32\x13.memkv.KeyValueListH\x00\x12)\n\x07metrics\x18\x04 \x01(\x0b\x32\x16.memkv.MetricsResponseH\x00\x12\"\n\x08key_list\x18\x05 \x01(\x0b\x32\x0e.memkv.KeyListH\x00\x42\n\n\x08\x63ontentsb\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'memkv_pb2', globals())
@@ -28,12 +28,14 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _DELETECOMMAND._serialized_end=130
   _KEYVALUE._serialized_start=132
   _KEYVALUE._serialized_end=170
-  _METRICSCOMMAND._serialized_start=172
-  _METRICSCOMMAND._serialized_end=293
-  _KEYVALUELIST._serialized_start=295
-  _KEYVALUELIST._serialized_end=346
-  _KEYLIST._serialized_start=348
-  _KEYLIST._serialized_end=371
-  _RESPONSE._serialized_start=374
-  _RESPONSE._serialized_end=547
+  _METRICSCOMMAND._serialized_start=173
+  _METRICSCOMMAND._serialized_end=338
+  _METRICSRESPONSE._serialized_start=340
+  _METRICSRESPONSE._serialized_end=462
+  _KEYVALUELIST._serialized_start=464
+  _KEYVALUELIST._serialized_end=515
+  _KEYLIST._serialized_start=517
+  _KEYLIST._serialized_end=540
+  _RESPONSE._serialized_start=543
+  _RESPONSE._serialized_end=717
 # @@protoc_insertion_point(module_scope)

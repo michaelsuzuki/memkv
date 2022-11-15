@@ -29,7 +29,7 @@ def response() -> memkv_pb2.Response:
 
 
 def metrics_command() -> memkv_pb2.MetricsCommand:
-    return memkv_pb2.MetricsCommand(key_count=100, total_items_size=56789)
+    return memkv_pb2.MetricsCommand(get_key_count=True, get_total_store_size=True)
 
 
 def wrap_message(msg: MessageT) -> MessageWrapper:

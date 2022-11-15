@@ -1,5 +1,7 @@
 from asyncio import AbstractEventLoop, StreamReader
+from functools import reduce
 import pytest
+import pytest_asyncio
 
 import memkv.protocol.memkv_pb2 as pb2
 from memkv.protocol.util import MessageT, construct_header_and_data
@@ -61,6 +63,12 @@ def assert_correct_response(server: Server, msg: MessageT, response: pb2.Respons
         msg_keys = {k for k in msg.keys}
         assert response_keys == msg_keys, f"The keys to be deleted = {msg_keys} don't match the ones returned: {response_keys}"
     elif isinstance(msg, pb2.MetricsCommand):
+        pass
+
+
+@pytest.fixture
+def metrics_msg():
+    return metrics_command()
 
 
 @pytest.mark.asyncio
@@ -81,3 +89,46 @@ async def test_handle_message_types(msg: MessageT, event_loop: AbstractEventLoop
     finally:
         server.terminate()
     
+
+async def create_metrics(server: Server, loop: AbstractEventLoop) -> pb2.MetricsResponse:
+    server.key_value_store["keyOne"] = b"valueOne"
+    server.key_value_store["keyTwo"] = b"valueTwo"
+    unique_keys = set()
+    get_cmd = get_command()
+    keys_accessed_by_get = len(get_cmd.keys)
+    unique_keys = unique_keys.union(get_cmd.keys)
+    set_cmd = set_command()
+    keys_updated_by_set = len(set_cmd.key_values)
+    unique_keys = unique_keys.union([kv.key for kv in set_cmd.key_values])
+    total_size = reduce(lambda a, b: a + b, [len(kv.value) for kv in set_cmd.key_values])
+    delete_cmd = delete_command()
+    keys_removed_by_delete = len(delete_cmd.keys)
+    unique_keys = unique_keys.difference(set(delete_cmd.keys))
+    total_size -= len(b"valueFour")
+    await server.handle_message(message_reader(loop, get_cmd))
+    await server.handle_message(message_reader(loop, set_cmd))
+    await server.handle_message(message_reader(loop, delete_cmd))
+    return pb2.MetricsResponse(
+        key_count = len(unique_keys),
+        total_store_size = total_size,
+        get_count = keys_accessed_by_get,
+        set_count = keys_updated_by_set,
+        delete_count = keys_removed_by_delete,
+    )
+
+
+@pytest.mark.asyncio
+async def test_handle_metrics_command(metrics_msg, event_loop: AbstractEventLoop):
+    server = Server()
+    try:
+        expected_metrics = await create_metrics(server, event_loop)
+        response = await server.handle_message(message_reader(event_loop, metrics_msg))
+        assert expected_metrics.key_count == response.metrics.key_count
+        assert expected_metrics.get_count == response.metrics.get_count
+        assert expected_metrics.set_count == response.metrics.set_count
+        assert expected_metrics.delete_count == response.metrics.delete_count
+        assert expected_metrics.total_store_size == response.metrics.total_store_size
+    except Exception as e:
+        raise
+    finally:
+        server.terminate()
