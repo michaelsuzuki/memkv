@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package memkv;
+
+
+message GetCommand {
+    repeated string keys = 1;
+}
+
+message SetCommand {
+    repeated KeyValue key_values = 1;
+}
+
+message DeleteCommand {
+    repeated string keys = 1;
+}
+
+message KeyValue {
+    string key = 1;
+    bytes value = 2;
+}
+
+message MetricsCommand {
+    bool get_key_count = 1;
+    bool get_total_store_size = 2;
+    bool get_get_command_count = 3;
+    bool get_set_command_count = 4;
+    bool get_delete_command_count = 5;
+}
+
+message MetricsResponse {
+    int64 key_count = 1;
+    int64 total_store_size = 2;
+    int64 get_count = 3;
+    int64 set_count = 4;
+    int64 delete_count = 5;
+}
+
+message KeyValueList {
+    repeated KeyValue key_values = 1;
+}
+
+message KeyList {
+    repeated string keys = 1;
+}
+
+message Response {
+    string status = 1;
+    string message = 2;
+    oneof contents {
+        KeyValueList kv_list = 3;
+        MetricsResponse metrics = 4;
+        KeyList key_list = 5;
+    }
+}
