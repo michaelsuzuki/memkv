@@ -1,4 +1,5 @@
 import asyncio
+import socket
 import struct
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial, reduce
@@ -11,10 +12,10 @@ from memkv.protocol.util import (HEADER_SIZE, MessageWrapper,
 from memkv.server.locks import ReaderWriterLock, ReadLock, WriteLock
 
 KEY_COUNT_METRIC: Final[str] = "key_count"
-TOTAL_STORE_SIZE_METRIC: Final[str] = "total_store_size"
-GET_COMMAND_KEYS_ACCESSED_METRIC: Final[str] = "get_command_keys_accessedcount"
-SET_COMMAND_KEYS_UPDATED_METRIC: Final[str] = "set_command_keys_updated_count"
-KEYS_DELETED_METRIC: Final[str] = "keys_deleted_count"
+TOTAL_STORE_CONTENTS_SIZE_METRIC: Final[str] = "total_store_contents_size"
+KEYS_READ_COUNT_METRIC: Final[str] = "keys_read_count"
+KEYS_UPDATED_COUNT_METRIC: Final[str] = "keys_updated_count"
+KEYS_DELETED_COUNT_METRIC: Final[str] = "keys_deleted_count"
 
 
 class ServerMetrics(object):
@@ -59,7 +60,7 @@ class Server(object):
     def execute_get(self, cmd: pb2.GetCommand) -> pb2.Response:
         with ReadLock(self.kv_rw_lock):
             key_values = {key: self.key_value_store[key] for key in cmd.keys if key in self.key_value_store}
-        self.metrics.increment(GET_COMMAND_KEYS_ACCESSED_METRIC, len(cmd.keys))
+        self.metrics.increment(KEYS_READ_COUNT_METRIC, len(cmd.keys))
         kv_list = pb2.KeyValueList()
         kv_list.key_values.extend([pb2.KeyValue(key=k, value=v) for k, v in key_values.items()])
         return pb2.Response(status="OK", message="OK", kv_list=kv_list)
@@ -69,26 +70,26 @@ class Server(object):
         key_list = pb2.KeyList()
         with WriteLock(self.kv_rw_lock):
             self.key_value_store.update(updates_dict)
-        self.metrics.increment(SET_COMMAND_KEYS_UPDATED_METRIC, len(updates_dict))
+        self.metrics.increment(KEYS_UPDATED_COUNT_METRIC, len(updates_dict))
         total_size = reduce(lambda a, b: a + b, [len(v) for v in updates_dict.values()])
-        self.metrics.increment(TOTAL_STORE_SIZE_METRIC, total_size)
+        self.metrics.increment(TOTAL_STORE_CONTENTS_SIZE_METRIC, total_size)
         key_list.keys.extend([kv.key for kv in cmd.key_values])
         return pb2.Response(status="OK", message="OK", key_list=key_list)
 
     def execute_delete(self, cmd: pb2.DeleteCommand) -> pb2.Response:
         try:
             key_list = pb2.KeyList()
-            keys_deleted = 0
+            keys_deleted = set()
             size_deleted = 0
             with WriteLock(self.kv_rw_lock):
                 for key in cmd.keys:
                     value = self.key_value_store.pop(key, None)
                     if value is not None:
                         size_deleted += len(value)
-                        keys_deleted += 1
-            self.metrics.decrement(KEYS_DELETED_METRIC, keys_deleted)
-            self.metrics.decrement(TOTAL_STORE_SIZE_METRIC, size_deleted)
-            key_list.keys.extend([k for k in cmd.keys])
+                        keys_deleted.add(key)
+            self.metrics.decrement(KEYS_DELETED_COUNT_METRIC, len(keys_deleted))
+            self.metrics.decrement(TOTAL_STORE_CONTENTS_SIZE_METRIC, size_deleted)
+            key_list.keys.extend([k for k in keys_deleted])
             kw_args = {"key_list": key_list} if len(key_list.keys) > 0 else {}
             return pb2.Response(status="OK", message="OK", **kw_args)
         except Exception as e:
@@ -100,23 +101,29 @@ class Server(object):
             if cmd.get_key_count:
                 metrics.key_count = len(self.key_value_store)
 
-            if cmd.get_total_store_size and TOTAL_STORE_SIZE_METRIC in self.metrics.metrics:
-                metrics.total_store_size = self.metrics.get(TOTAL_STORE_SIZE_METRIC)
+            if cmd.get_total_store_contents_size and TOTAL_STORE_CONTENTS_SIZE_METRIC in self.metrics.metrics:
+                metrics.total_store_contents_size = self.metrics.get(TOTAL_STORE_CONTENTS_SIZE_METRIC)
 
-            if cmd.get_get_command_count and GET_COMMAND_KEYS_ACCESSED_METRIC in self.metrics.metrics:
-                metrics.get_count = self.metrics.get(GET_COMMAND_KEYS_ACCESSED_METRIC)
+            if cmd.get_keys_read_count and KEYS_READ_COUNT_METRIC in self.metrics.metrics:
+                metrics.keys_read_count = self.metrics.get(KEYS_READ_COUNT_METRIC)
 
-            if cmd.get_set_command_count and SET_COMMAND_KEYS_UPDATED_METRIC in self.metrics.metrics:
-                metrics.set_count = self.metrics.get(SET_COMMAND_KEYS_UPDATED_METRIC)
+            if cmd.get_keys_updated_count and KEYS_UPDATED_COUNT_METRIC in self.metrics.metrics:
+                metrics.keys_updated_count = self.metrics.get(KEYS_UPDATED_COUNT_METRIC)
 
-            if cmd.get_delete_command_count and KEYS_DELETED_METRIC in self.metrics.metrics:
-                metrics.delete_count = self.metrics.get(KEYS_DELETED_METRIC)
+            if cmd.get_keys_deleted_count and KEYS_DELETED_COUNT_METRIC in self.metrics.metrics:
+                metrics.keys_deleted_count = self.metrics.get(KEYS_DELETED_COUNT_METRIC)
         return pb2.Response(status="OK", message="OK", metrics=metrics)
 
     async def run_io_loop(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         while not self.terminated:
-            response = await self.handle_message(reader)
-            await self.handle_response(response)
+            try:
+                response = await self.handle_message(reader)
+                await self.handle_response(response)
+            except socket.error:
+                pass
+            except Exception as e:
+                pass
+
 
     async def handle_message(self, reader: asyncio.StreamReader) -> pb2.Response:
             header_bytes = await reader.read(HEADER_SIZE)
@@ -151,5 +158,5 @@ class Server(object):
             else:
                 raise Exception(f"Unexpected message type received {msg.__class__.__name__}")
         except Exception as e:
-            return pb2.Response("Status: Failed", str(e))
+            return pb2.Response(status="ERROR", message=str(e))
 

@@ -2,9 +2,11 @@ from dataclasses import dataclass
 from enum import Enum, IntEnum
 from functools import reduce
 from operator import concat
+import random
 import struct
 import sys
-from typing import Optional, Sequence, Tuple, Union
+from time import time
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
 import memkv.protocol.memkv_pb2 as memkv_pb2
 
 
@@ -100,3 +102,35 @@ def encode_str(value: str) -> bytes:
 def flatten(items: list[any]) -> list[any]:
     return reduce(concat, items)
 
+
+# Implementation of the AWS full jitter backoff algorithm
+def backoff(attempts: int, min_delay: int = 1, cap: int = 5000) -> float:
+    """Computes the backoff based on the AWS Full Jitter backoff algorithm
+    
+    The algorithm is described here: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+
+    attempts: Number of times that a request has been tried
+    cap: The maximum backoff in milliseconds
+    """
+    return random.randrange(0, min(cap, min_delay * 2 ** attempts))
+
+
+class RetryableException(Exception):
+    def __init__(self, cause):
+        self.cause = cause
+
+
+def with_backoff(logger, max_retries: int=5, min_delay: int = 1, cap: int = 5000):
+    def inner(func):
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries <= max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except RetryableException as e:
+                    logger.info(f"Caught an exception that was retryable: {e}")
+                    retries += 1
+                    seconds_to_wait = backoff(retries, min_delay, cap) / 1000.0
+                    time.sleep(seconds_to_wait)
+        return wrapper
+    return inner

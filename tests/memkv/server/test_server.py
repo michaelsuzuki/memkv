@@ -24,10 +24,10 @@ def set_command() -> pb2.SetCommand:
 def metrics_command() -> pb2.MetricsCommand:
     return pb2.MetricsCommand(
         get_key_count = True,
-        get_total_store_size = True,
-        get_get_command_count = True,
-        get_set_command_count = True,
-        get_delete_command_count = True,
+        get_total_store_contents_size = True,
+        get_keys_read_count = True,
+        get_keys_updated_count = True,
+        get_keys_deleted_count = True,
     )
 
 
@@ -83,7 +83,7 @@ async def test_handle_message_types(msg: MessageT, event_loop: AbstractEventLoop
         reader = message_reader(event_loop, msg)
         server.key_value_store["keyOne"] = b"valueOne"
         server.key_value_store["keyTwo"] = b"valueTwo"
-        server.key_value_store["KeyFour"] = b"valueFour"
+        server.key_value_store["keyFour"] = b"valueFour"
         response = await server.handle_message(reader)
         assert_correct_response(server, msg, response)
     finally:
@@ -110,10 +110,10 @@ async def create_metrics(server: Server, loop: AbstractEventLoop) -> pb2.Metrics
     await server.handle_message(message_reader(loop, delete_cmd))
     return pb2.MetricsResponse(
         key_count = len(unique_keys),
-        total_store_size = total_size,
-        get_count = keys_accessed_by_get,
-        set_count = keys_updated_by_set,
-        delete_count = keys_removed_by_delete,
+        total_store_contents_size = total_size,
+        keys_read_count = keys_accessed_by_get,
+        keys_updated_count = keys_updated_by_set,
+        keys_deleted_count = keys_removed_by_delete,
     )
 
 
@@ -124,10 +124,10 @@ async def test_handle_metrics_command(metrics_msg, event_loop: AbstractEventLoop
         expected_metrics = await create_metrics(server, event_loop)
         response = await server.handle_message(message_reader(event_loop, metrics_msg))
         assert expected_metrics.key_count == response.metrics.key_count
-        assert expected_metrics.get_count == response.metrics.get_count
-        assert expected_metrics.set_count == response.metrics.set_count
-        assert expected_metrics.delete_count == response.metrics.delete_count
-        assert expected_metrics.total_store_size == response.metrics.total_store_size
+        assert expected_metrics.keys_read_count == response.metrics.keys_read_count
+        assert expected_metrics.keys_updated_count == response.metrics.keys_updated_count
+        assert expected_metrics.keys_deleted_count == response.metrics.keys_deleted_count
+        assert expected_metrics.total_store_contents_size == response.metrics.total_store_contents_size
     except Exception as e:
         raise
     finally:
