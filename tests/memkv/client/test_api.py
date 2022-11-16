@@ -48,7 +48,7 @@ def test_get_with_one_key(client):
 
 
 def test_get_with_multiple_keys(client):
-    expected_response = construct_response("OK", "OK", "keyOne", "keyTwo")
+    expected_response = construct_response("OK", "OK", keyOne=b"valueOne", keyTwo=b"valueTwo")
     header_bytes, data_bytes = encode_into_header_and_data_bytes(expected_response)
     client.sd.recv.side_effect = [header_bytes, data_bytes]
     actual_key_values = client.get(["keyOne", "keyTwo"])
