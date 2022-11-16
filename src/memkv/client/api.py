@@ -8,12 +8,11 @@ from memkv.protocol.util import (
     MessageT,
     MessageWrapper,
     RetryableException,
-    encode_into_header_and_data_bytes,
     construct_message,
     decode_header,
+    encode_into_header_and_data_bytes,
     with_backoff,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ class Client(object):
     def connect(self):
         if self.sd is None:
             self.sd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sd.connect(self.host, self.port)
+            self.sd.connect((self.host, self.port))
 
     def send(self, data: bytes):
         try:
@@ -46,7 +45,7 @@ class Client(object):
             received_length = 0
             while received_length < length:
                 buffer += self.sd.recv(length - len(buffer))
-                received_length += len(buffer)
+                received_length = len(buffer)
             return buffer
         except socket.error as e:
             logger.exception(e)

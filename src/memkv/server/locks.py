@@ -3,7 +3,6 @@
 import threading
 from dataclasses import dataclass
 from os import getpid
-from typing import Dict, Set
 
 
 @dataclass
@@ -19,7 +18,8 @@ class ThreadId(object):
 
 # This reader writer lock prioritizes writes over reads.
 # Once a write comes in all new reads must wait for the
-# write to complete.
+# write to complete.  It is adapted from the following
+# article: https://blog.majid.info/a-reader-writer-lock-for-python/
 class ReaderWriterLock(object):
     def __init__(self):
         self.rwlock = 0
