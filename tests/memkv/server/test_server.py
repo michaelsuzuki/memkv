@@ -2,6 +2,7 @@ from asyncio import AbstractEventLoop, StreamReader
 from functools import reduce
 
 import pytest
+
 import memkv.protocol.memkv_pb2 as pb2
 from memkv.protocol.util import MessageT, encode_into_header_and_data_bytes
 from memkv.server.server import Server

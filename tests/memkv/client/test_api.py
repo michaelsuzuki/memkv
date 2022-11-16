@@ -1,9 +1,10 @@
 from functools import reduce
+
 import pytest
 from pytest_mock import MockerFixture
 
-from memkv.client.api import Client, ClientAPIException
 import memkv.protocol.memkv_pb2 as pb2
+from memkv.client.api import Client, ClientAPIException
 from memkv.protocol.util import encode_into_header_and_data_bytes
 
 
