@@ -1,12 +1,23 @@
+import logging
 import re
 import shlex
 from typing import Dict, List
+import click
 
 from prompt_toolkit import PromptSession, print_formatted_text
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.history import InMemoryHistory
 
+from memkv.client.api import Client
+
 version = "0.1"
+
+log_format = "%(asctime)s::%(levelname)s::%(name)s::%(filename)s::%(lineno)d::%(message)s"
+logging.basicConfig(
+    level="INFO",
+    format=log_format
+)
+logger = logging.getLogger(__name__)
 
 cmd_pat = re.compile(r"^\s*(GET|SET|DELETE|METRICS)\s*", re.IGNORECASE)
 
@@ -38,23 +49,33 @@ def get_key_value_dict(args=List[str]) -> Dict[str, bytes]:
     }
 
 
-def execute_get(session: PromptSession, args: str):
+def execute_get(client: Client, session: PromptSession, args: str) -> None:
     keys = shlex.split(args)
-    print(f"KEYS: {keys}")
+    try:
+        key_values = client.get(keys)
+        for key, value in key_values:
+            print_formatted_text(f" .{key} = {value}")
+    except Exception as e:
+        print_formatted_text(f"Error retrieving values for keys: {e}")
 
 
-def execute_set(session: PromptSession, args: str):
+def execute_set(client: Client, session: PromptSession, args: str) -> None:
     keys_and_values = get_key_value_dict(shlex.split(args, posix=True))
     print(f"Keys and Values: {keys_and_values}")
+    try:
+        keys_set = client.set(key_values=keys_and_values)
+        print_formatted_text(f"Updated: {', '.join(keys_set)}")
+    except Exception as e:
+        print_formatted_text(f"Error adding/updating keys: {e}")
 
 
-def execute_delete(session: PromptSession, args: str):
+def execute_delete(client: Client, session: PromptSession, args: str):
     keys = shlex.split(args)
     print(f"Keys = {keys}")
 
 
-def should_continue(session: PromptSession, message: str) -> bool:
-    answer = session.prompt(message + " [y|n]: ")
+def should_continue(client: Client, session: PromptSession, message: str) -> bool:
+    answer = session.prompt(message + " [y/n]: ")
     return answer[0].lower() == "y"
 
 
@@ -66,7 +87,7 @@ def get_required_args(session, command: str, args: List[str]) -> str:
     )
 
 
-def process_input(session: PromptSession, input: str):
+def process_input(session: PromptSession, input: str, client: Client):
     cmd_and_args = input.split(" ", 1)
     cmd = cmd_and_args[0].strip().upper()
     if cmd == "GET":
@@ -77,7 +98,7 @@ def process_input(session: PromptSession, input: str):
         execute_delete(session, get_required_args(cmd_and_args))
     elif cmd == "METRICS":
         pass
-    elif cmd in ("QUIT", "q"):
+    elif cmd in ("QUIT", "Q"):
         if should_continue(session, "Are you sure you want to quit?"):
             exit(0)
     else:
@@ -85,12 +106,55 @@ def process_input(session: PromptSession, input: str):
             exit(0)
 
 
-def main():
+@click.command()
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    type=str,
+    help="The name of the memkv host you want to connect to"
+)
+@click.option(
+    "--port",
+    default=9001,
+    type=int,
+    help="The port that the memkv server is listening to"
+)
+@click.option(
+    "--debug", is_flag=True, default=False, help="Set this if you want more verbose logging"
+)
+def main(host: str, port: int, debug: bool):
+    """This interactive cli allows one to interact with a memkv server/
+
+    It supports the following commands:
+       GET:
+            At the prompt type: `GET keyOne "key Two", keyThree`
+            The cli will send a request to the server to retrieve the values
+            associated with the keys.  If any of the keys does not exist on
+            the server, no value will be returned.
+       SET:
+            At the prompt type: SET keyOne "This is some byte data" keyTwo "this is more data"
+            All values are space separated.  There are spaces in the values or keys then
+            you should surround them with double quotes.  Note that values are all treated as
+            byte strings, use proper hex escapes when necessary.  This will show a list of the
+            keys updated on return
+        DELETE:
+            At the prompt type: DELETE keyOne keyTwo ....  Each key is separated
+            from another by a space.  If the key has a space in it, surround it with
+            double quotes.  This will show a list of the keys deleted from the server.
+            If a key is not shown, then the key was not found
+        METRICS:
+            At the prompt type: METRICS
+            This will return a list of metrics about the server
+    """
     print_formatted_text(f"The memkv cli version {version}")
+    if debug:
+        logger.setLevel("DEBUG")
+
     session = new_session()
+    client = Client(host=host, port=port)
     input = session.prompt("> ")
     while True:
-        process_input(session, input)
+        process_input(session, input, client)
 
 
 if __name__ == "__main__":
