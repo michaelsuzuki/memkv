@@ -1,8 +1,9 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from queue import Queue
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from queue import Queue
 from typing import Any, Dict
+
 from memkv.protocol.util import flatten
 from memkv.server.locks import ReaderWriterLock, ReadLock, ThreadId, WriteLock
 

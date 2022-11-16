@@ -1,14 +1,15 @@
 # This is an implementation of a cross process R/W Lock
 
+import threading
 from dataclasses import dataclass
 from os import getpid
-import threading
 from typing import Dict, Set
 
 
 @dataclass
 class ThreadId(object):
     identifier: str
+
     def __init__(self):
         self.identifier = str(getpid()) + "." + str(threading.get_ident())
 
@@ -34,13 +35,13 @@ class ReaderWriterLock(object):
         if self.rwlock != 0:
             self.writes_waiting += 1
         return self.rwlock != 0
-    
+
     def read_acquire(self):
         with self.lock:
             while self.rwlock < 0 or self.writes_waiting:
                 self.readers_ok.wait()
             self.rwlock += 1
-    
+
     def write_acquire(self):
         with self.lock:
             while self.rwlock != 0:
@@ -89,5 +90,3 @@ class WriteLock(object):
     def __exit__(self, exc_type, exc_value, traceback):
         self.lock.release()
         return False
-
-

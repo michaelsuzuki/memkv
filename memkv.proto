@@ -22,18 +22,18 @@ message KeyValue {
 
 message MetricsCommand {
     bool get_key_count = 1;
-    bool get_total_store_size = 2;
-    bool get_get_command_count = 3;
-    bool get_set_command_count = 4;
-    bool get_delete_command_count = 5;
+    bool get_total_store_contents_size = 2;
+    bool get_keys_read_count = 3;
+    bool get_keys_updated_count = 4;
+    bool get_keys_deleted_count = 5;
 }
 
 message MetricsResponse {
     int64 key_count = 1;
-    int64 total_store_size = 2;
-    int64 get_count = 3;
-    int64 set_count = 4;
-    int64 delete_count = 5;
+    int64 total_store_contents_size = 2;
+    int64 keys_read_count = 3;
+    int64 keys_updated_count = 4;
+    int64 keys_deleted_count = 5;
 }
 
 message KeyValueList {

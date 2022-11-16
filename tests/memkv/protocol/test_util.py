@@ -1,9 +1,22 @@
 import struct
 import sys
-import pytest
 from typing import Callable
-from memkv.protocol.util import MessageHeader, MessageWrapper, MessageT, construct_header_and_data, decode_header, construct_message, encode_str, InvalidMessageTypeError, get_type
+
+import pytest
+
 import memkv.protocol.memkv_pb2 as memkv_pb2
+from memkv.protocol.util import (
+    HEADER_SIZE,
+    InvalidMessageTypeError,
+    MessageHeader,
+    MessageT,
+    MessageWrapper,
+    encode_into_header_and_data_bytes,
+    construct_message,
+    decode_header,
+    encode_str,
+    get_type,
+)
 
 
 def get_command() -> memkv_pb2.GetCommand:
@@ -29,17 +42,17 @@ def response() -> memkv_pb2.Response:
 
 
 def metrics_command() -> memkv_pb2.MetricsCommand:
-    return memkv_pb2.MetricsCommand(get_key_count=True, get_total_store_size=True)
+    return memkv_pb2.MetricsCommand(get_key_count=True, get_total_store_contents_size=True)
 
 
 def wrap_message(msg: MessageT) -> MessageWrapper:
-    header_bytes, data = construct_header_and_data(msg)
+    header_bytes, data = encode_into_header_and_data_bytes(msg)
     header = decode_header(header_bytes)
-    return MessageWrapper(header = header, data = data)
+    return MessageWrapper(header=header, data=data)
 
 
 def assert_result(header: bytes, data: bytes, proto_obj: MessageT, expected: MessageT):
-    assert 6 == len(header), f"Header length should be 6 bytes found {len(header)}"
+    assert HEADER_SIZE == len(header), f"Header length should be 6 bytes found {len(header)}"
     try:
         proto_obj.ParseFromString(data)
         assert proto_obj.SerializeToString(deterministic=True) == expected.SerializeToString(deterministic=True)
@@ -56,7 +69,7 @@ def assert_result(header: bytes, data: bytes, proto_obj: MessageT, expected: Mes
     (response(), lambda h, d, c: assert_result(h, d, memkv_pb2.Response(), c)),
 ])
 def test_construct_header_and_data(command: MessageT, assertion: Callable[[bytes, bytes, MessageT], None]):
-    header, data = construct_header_and_data(command)
+    header, data = encode_into_header_and_data_bytes(command)
     assertion(header, data, command)
 
 
@@ -66,7 +79,7 @@ def test_construct_header_and_data_with_bad_message_type():
 
     with pytest.raises((AttributeError, InvalidMessageTypeError)):
         bad_obj = BadType()
-        construct_header_and_data(bad_obj)
+        encode_into_header_and_data_bytes(bad_obj)
 
 
 @pytest.mark.parametrize("command", [
@@ -77,7 +90,7 @@ def test_construct_header_and_data_with_bad_message_type():
     response(),
 ])
 def test_decode_header(command: MessageT):
-    header_bytes, data_bytes = construct_header_and_data(command)
+    header_bytes, data_bytes = encode_into_header_and_data_bytes(command)
     header = decode_header(header_bytes)
     expected = len(data_bytes)
     found = header.message_size
@@ -116,4 +129,4 @@ def test_construct_command_with_unknown_type():
     with pytest.raises((AttributeError, InvalidMessageTypeError)):
         header = MessageHeader(message_type=20, message_size=100)
         msg = MessageWrapper(header=header, data=b"abcde")
-        construct_header_and_data(msg)
+        encode_into_header_and_data_bytes(msg)
