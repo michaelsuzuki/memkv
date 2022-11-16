@@ -103,7 +103,7 @@ def get_required_args(args: List[str]) -> str:
     )
 
 
-def process_input(session: PromptSession, input: str, client: Client):
+def process_input(ctx, session: PromptSession, input: str, client: Client):
     cmd_and_args = input.split(" ", 1)
     cmd = cmd_and_args[0].strip().upper()
     if cmd == "GET":
@@ -117,6 +117,8 @@ def process_input(session: PromptSession, input: str, client: Client):
     elif cmd in ("QUIT", "Q"):
         if should_continue(session, "Are you sure you want to quit?"):
             exit(0)
+    elif cmd == "HELP":
+        print_formatted_text(ctx.get_help())
     else:
         if not should_continue(session, "Do you want to continue?"):
             exit(0)
@@ -138,27 +140,35 @@ def process_input(session: PromptSession, input: str, client: Client):
 @click.option(
     "--debug", is_flag=True, default=False, help="Set this if you want more verbose logging"
 )
-def main(host: str, port: int, debug: bool):
-    """This interactive cli allows one to interact with a memkv server/
+@click.pass_context
+def main(ctx, host: str, port: int, debug: bool):
+    """This cli allows one to interact with a memkv server.
 
-    It supports the following commands:
+    You may interact the server by starting the client and sending commands
+    when prompted.  The commands are as follows:\n 
+    \b
        GET:
-            At the prompt type: `GET keyOne "key Two", keyThree`
-            The cli will send a request to the server to retrieve the values
-            associated with the keys.  If any of the keys does not exist on
-            the server, no value will be returned.
-       SET:
-            At the prompt type: SET keyOne "This is some byte data" keyTwo "this is more data"
-            All values are space separated.  There are spaces in the values or keys then
-            you should surround them with double quotes.  Note that values are all treated as
-            byte strings, use proper hex escapes when necessary.  This will show a list of the
-            keys updated on return
+            Retrieves any values stored by the provided keys if any.
+            At the prompt type: `GET {key1} {key2} {keyn} ...
+            You may set as many keys as you want, they must be separated by spaces.  Any keys
+            that have spaces in them, must be surrounded by double quotes to ensure they are
+            interpreted correctly.  All keys found in the store will be returned and displayed.
+            If a key is not present on return, it means the key doesn't have a value in the
+            store.
+       SET: 
+            Sets the key(s) to the provided value(s)
+            At the prompt type: SET {key1} {value1} ... {keyN} {valueN}
+            Each token should be space separated with key immediately followed by the value to
+            write to that key.  If the key or value has spaces then it must be double quoted so they
+            are interpreted correctly.  Note that values are all considered binary representations so
+            use the appropriate hex escapes to encode non printable values.
         DELETE:
-            At the prompt type: DELETE keyOne keyTwo ....  Each key is separated
-            from another by a space.  If the key has a space in it, surround it with
-            double quotes.  This will show a list of the keys deleted from the server.
+            Deletes the provided keys from the memory store.
+            At the prompt type: DELETE {key1} {key2} ... {key3}
+            Each key is delimited by a space. Keys with spaces must be delimited by double quotes.
             If a key is not shown, then the key was not found
         METRICS:
+            Returns a list of metrics stored by the server
             At the prompt type: METRICS
             This will return a list of metrics about the server
     """
@@ -170,7 +180,7 @@ def main(host: str, port: int, debug: bool):
     client = Client(host=host, port=port)
     while True:
         input = session.prompt("> ")
-        process_input(session, input, client)
+        process_input(ctx, session, input, client)
 
 
 if __name__ == "__main__":
