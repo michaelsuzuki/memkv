@@ -1,34 +1,41 @@
-import base64
-from typing import Dict, List, Union
-from prompt_toolkit import PromptSession, print_formatted_text, prompt, HTML
-from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 import re
 import shlex
+from typing import Dict, List
 
+from prompt_toolkit import PromptSession, print_formatted_text
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.history import InMemoryHistory
 
 version = "0.1"
 
 cmd_pat = re.compile(r"^\s*(GET|SET|DELETE|METRICS)\s*", re.IGNORECASE)
 
 
-class MisMatchedArgsError(Exception): pass
+class MisMatchedArgsError(Exception):
+    pass
 
-class NotEnoughArgsError(Exception): pass
 
-class NoArgsFoundError(Exception): pass
+class NotEnoughArgsError(Exception):
+    pass
+
+
+class NoArgsFoundError(Exception):
+    pass
 
 
 def new_session() -> PromptSession:
     return PromptSession(
-        history = InMemoryHistory(),
-        auto_suggest = AutoSuggestFromHistory(),
-        enable_history_search = True,
+        history=InMemoryHistory(),
+        auto_suggest=AutoSuggestFromHistory(),
+        enable_history_search=True,
     )
 
 
-def get_key_value_dict(args = List[str]) -> Dict[str, bytes]:
-    return {args[i] : args[i + 1].encode("utf-8").decode("unicode-escape") for i in range(0, len(args), 2)}
+def get_key_value_dict(args=List[str]) -> Dict[str, bytes]:
+    return {
+        args[i]: args[i + 1].encode("utf-8").decode("unicode-escape")
+        for i in range(0, len(args), 2)
+    }
 
 
 def execute_get(session: PromptSession, args: str):
@@ -42,7 +49,7 @@ def execute_set(session: PromptSession, args: str):
 
 
 def execute_delete(session: PromptSession, args: str):
-    keys = keys.shlex.split(args)
+    keys = shlex.split(args)
     print(f"Keys = {keys}")
 
 
@@ -54,7 +61,9 @@ def should_continue(session: PromptSession, message: str) -> bool:
 def get_required_args(session, command: str, args: List[str]) -> str:
     if len(args) > 1:
         return args[1]
-    raise NoArgsFoundError(f"The command '{command}' requires at least one argument.  None were found.")
+    raise NoArgsFoundError(
+        f"The command '{command}' requires at least one argument.  None were found."
+    )
 
 
 def process_input(session: PromptSession, input: str):
@@ -73,7 +82,7 @@ def process_input(session: PromptSession, input: str):
             exit(0)
     else:
         if not should_continue(session, "Do you want to continue?"):
-            exit(0)   
+            exit(0)
 
 
 def main():
@@ -84,7 +93,5 @@ def main():
         process_input(session, input)
 
 
-
 if __name__ == "__main__":
-   main()
-
+    main()

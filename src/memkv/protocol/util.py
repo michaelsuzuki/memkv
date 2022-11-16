@@ -1,17 +1,18 @@
-from dataclasses import dataclass
-from enum import Enum, IntEnum
-from functools import reduce
-from operator import concat
 import random
 import struct
-import sys
-from time import time
-from typing import Any, Callable, Optional, Sequence, Tuple, Union
+from dataclasses import dataclass
+from enum import IntEnum
+from functools import reduce
+from operator import concat
+import time
+from typing import Optional, Tuple, Union
+
 import memkv.protocol.memkv_pb2 as memkv_pb2
 
 
 # Classes
-class InvalidMessageTypeError(Exception): pass
+class InvalidMessageTypeError(Exception):
+    pass
 
 
 class MessageType(IntEnum):
@@ -35,12 +36,16 @@ class MessageWrapper(object):
 
 
 # Constants
-HEADER_SIZE = 6 # Header is 6 bytes: 2 byte unsigned short for message type and 4 byte unsigned long for size
+HEADER_SIZE = 6  # Header is 6 bytes: 2 byte unsigned short for message type and 4 byte unsigned long for size
 
 
 # Types
 MessageT = Union[
-    memkv_pb2.GetCommand, memkv_pb2.SetCommand, memkv_pb2.DeleteCommand, memkv_pb2.MetricsCommand, memkv_pb2.Response
+    memkv_pb2.GetCommand,
+    memkv_pb2.SetCommand,
+    memkv_pb2.DeleteCommand,
+    memkv_pb2.MetricsCommand,
+    memkv_pb2.Response,
 ]
 HeaderT = bytes
 DataT = bytes
@@ -51,7 +56,7 @@ MESSAGE_CONSTRUCTORS = {
     MessageType.SET_COMMAND: lambda: memkv_pb2.SetCommand(),
     MessageType.DELETE_COMMAND: lambda: memkv_pb2.DeleteCommand(),
     MessageType.METRICS_COMMAND: lambda: memkv_pb2.MetricsCommand(),
-    MessageType.RESPONSE: lambda: memkv_pb2.Response()
+    MessageType.RESPONSE: lambda: memkv_pb2.Response(),
 }
 
 
@@ -70,7 +75,7 @@ def get_type(command: MessageT) -> int:
         raise InvalidMessageTypeError("Invalid message found unable to get it's type")
 
 
-def construct_header_and_data(command: MessageT) -> Tuple[HeaderT, DataT]:
+def encode_into_header_and_data_bytes(command: MessageT) -> Tuple[HeaderT, DataT]:
     data = command.SerializeToString()
     size = len(data)
     header = struct.pack("!HI", get_type(command), size)
@@ -80,6 +85,7 @@ def construct_header_and_data(command: MessageT) -> Tuple[HeaderT, DataT]:
 def decode_header(encoded_header: bytes) -> MessageHeader:
     message_type, size = struct.unpack("!HI", encoded_header)
     return MessageHeader(message_type=MessageType(message_type), message_size=size)
+
 
 def construct_message(msg: MessageWrapper) -> Optional[MessageT]:
     global MESSAGE_CONSTRUCTORS
@@ -106,13 +112,13 @@ def flatten(items: list[any]) -> list[any]:
 # Implementation of the AWS full jitter backoff algorithm
 def backoff(attempts: int, min_delay: int = 1, cap: int = 5000) -> float:
     """Computes the backoff based on the AWS Full Jitter backoff algorithm
-    
+
     The algorithm is described here: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
 
     attempts: Number of times that a request has been tried
     cap: The maximum backoff in milliseconds
     """
-    return random.randrange(0, min(cap, min_delay * 2 ** attempts))
+    return random.randrange(0, min(cap, min_delay * 2**attempts))
 
 
 class RetryableException(Exception):
@@ -120,10 +126,11 @@ class RetryableException(Exception):
         self.cause = cause
 
 
-def with_backoff(logger, max_retries: int=5, min_delay: int = 1, cap: int = 5000):
+def with_backoff(logger, max_retries: int = 2, min_delay: int = 1, cap: int = 5000):
     def inner(func):
         def wrapper(*args, **kwargs):
             retries = 0
+            actual_exception = None
             while retries <= max_retries:
                 try:
                     return func(*args, **kwargs)
@@ -131,6 +138,9 @@ def with_backoff(logger, max_retries: int=5, min_delay: int = 1, cap: int = 5000
                     logger.info(f"Caught an exception that was retryable: {e}")
                     retries += 1
                     seconds_to_wait = backoff(retries, min_delay, cap) / 1000.0
+                    actual_exception = e.cause
                     time.sleep(seconds_to_wait)
+            raise actual_exception
         return wrapper
+
     return inner
