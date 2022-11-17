@@ -120,8 +120,11 @@ def process_input(ctx, session: PromptSession, input: str, client: Client):
     elif cmd == "HELP":
         print_formatted_text(ctx.get_help())
     else:
-        if not should_continue(session, "Do you want to continue?"):
-            exit(0)
+        if cmd:
+            print_formatted_text(
+                f"Unknown command entered: {cmd}. \
+                    You can enter 'help' for more information or try again"
+            )
 
 
 @click.command()
