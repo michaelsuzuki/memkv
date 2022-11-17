@@ -146,11 +146,18 @@ class Server(object):
         while not self.terminated:
             try:
                 response = await self.handle_message(reader)
-                await self.handle_response(response)
-            except socket.error:
-                pass
+                await self.handle_response(response, writer)
+            except asyncio.IncompleteReadError:
+                logger.info("Looks like the client was dropped or disconnected.")
+                self._close_stream(writer)
+            except socket.error as e:
+                logger.exception(e)
+                self._close_stream(writer)
+                raise
             except Exception as e:
-                pass
+                logger.exception(e)
+                self._close_stream(writer)
+                raise
 
     async def handle_message(self, reader: asyncio.StreamReader) -> pb2.Response:
         header_bytes = await reader.read(HEADER_SIZE)
@@ -190,3 +197,10 @@ class Server(object):
                 )
         except Exception as e:
             return pb2.Response(status="ERROR", message=str(e))
+
+    async def _close_stream(writer: asyncio.StreamWriter) -> None:
+        try:
+            writer.close()
+            await writer.wait_closed()
+        except Exception as e:
+            logger.warn(f"Error trying to close the stream: {e}")
