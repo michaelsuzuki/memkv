@@ -1,7 +1,6 @@
 import logging
 import re
 import shlex
-import sys
 from typing import Callable, Dict, Final, List, Union, Type
 
 import click
@@ -14,6 +13,10 @@ from memkv.client.api import Client
 PARSED_ARGS_T: Final[Type] = Union[List[str], Dict[str, bytes]]
 
 version: Final[str] = "0.1"
+
+class ParseArgsError(Exception):
+    pass
+
 
 log_format: Final[str] = \
     "%(asctime)s::%(levelname)s::%(name)s::%(filename)s::%(lineno)d::%(message)s"
@@ -48,10 +51,13 @@ def new_session() -> PromptSession:
 
 
 def get_key_value_dict(args=List[str]) -> Dict[str, bytes]:
-    return {
-        args[i]: args[i + 1].encode("utf-8").decode("unicode-escape").encode()
-        for i in range(0, len(args), 2)
-    }
+    try:
+        return {
+            args[i]: args[i + 1].encode("utf-8").decode("unicode-escape").encode()
+            for i in range(0, len(args), 2)
+        }
+    except IndexError:
+        raise ParseArgsError("Unable to parse arguments: Mismatched keys and/or values")
 
 
 def execute_get(client: Client, keys: List[str]) -> None:
@@ -60,7 +66,7 @@ def execute_get(client: Client, keys: List[str]) -> None:
         for key, value in key_values.items():
             print_formatted_text(f"  {key} = {value}")
     except Exception as e:
-        print_formatted_text(f"Error retrieving values for keys: {e}")
+        print_formatted_text(f"Error retrieving values for keys: {e.__class__.__name__}")
 
 
 def parse_args_string(
@@ -125,7 +131,10 @@ def process_input(ctx, session: PromptSession, input: str, client: Client):
     if cmd == "GET":
         execute_get(client, parse_args_string(get_args_string(cmd_and_args), parse_keys))
     elif cmd == "SET":
-        execute_set(client, parse_args_string(get_args_string(cmd_and_args), parse_key_values))
+        try:
+            execute_set(client, parse_args_string(get_args_string(cmd_and_args), parse_key_values))
+        except ParseArgsError as e:
+            print_formatted_text(f"Error for cmd {cmd}: {e}")
     elif cmd == "DELETE":
         execute_delete(client, parse_args_string(get_args_string(cmd_and_args), parse_keys))
     elif cmd == "METRICS":
@@ -147,7 +156,10 @@ def process_cmd_with_args(client: Client, cmd: str, args: PARSED_ARGS_T):
     if cmd.upper() == "GET":
         execute_get(client, args)
     elif cmd.upper() == "SET":
-        execute_set(client, get_key_value_dict(args))
+        try:
+            execute_set(client, get_key_value_dict(args))
+        except ParseArgsError as e:
+            print_formatted_text(f"Error executing command {cmd}: {e}")
     elif cmd.upper() == "DELETE":
         execute_delete(client, args)
     elif cmd.upper() == "METRICS":
@@ -216,7 +228,7 @@ def main(ctx, host: str, port: int, cmd: str, args: List[Union[str, bytes]], deb
 
     client = Client(host=host, port=port)
     if cmd is not None:
-        print(f"GOT command: {cmd}")
+        print(f"Running command: {cmd}")
         process_cmd_with_args(client, cmd, args)
 
     session = new_session()
