@@ -157,15 +157,16 @@ class Server(object):
             try:
                 response = await self.handle_message(reader)
                 await self.handle_response(response, writer)
+            except asyncio.IncompleteReadError:
+                logger.info("Looks like the client was dropped or disconnected.")
+                self._close_stream(writer)
             except socket.error as e:
                 logger.exception(e)
-                writer.close()
-                await writer.wait_closed()
+                self._close_stream(writer)
                 raise
             except Exception as e:
                 logger.exception(e)
-                writer.close()
-                await writer.wait_closed()
+                self._close_stream(writer)
                 raise
 
     async def handle_message(self, reader: asyncio.StreamReader) -> pb2.Response:
@@ -207,3 +208,10 @@ class Server(object):
         except Exception as e:
             logger.exception("Error executing a message")
             return pb2.Response(status="ERROR", message=str(e))
+
+    async def _close_stream(writer: asyncio.StreamWriter) -> None:
+        try:
+            writer.close()
+            await writer.wait_closed()
+        except Exception as e:
+            logger.warn(f"Error trying to close the stream: {e}")
