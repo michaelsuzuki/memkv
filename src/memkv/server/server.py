@@ -1,6 +1,6 @@
 import asyncio
+import logging
 import socket
-import struct
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial, reduce
 from typing import Final, Optional
@@ -9,12 +9,13 @@ import memkv.protocol.memkv_pb2 as pb2
 from memkv.protocol.util import (
     HEADER_SIZE,
     MessageWrapper,
-    encode_into_header_and_data_bytes,
     construct_message,
     decode_header,
-    new_message_wrapper,
+    encode_into_header_and_data_bytes,
 )
 from memkv.server.locks import ReaderWriterLock, ReadLock, WriteLock
+
+logger = logging.getLogger(__name__)
 
 KEY_COUNT_METRIC: Final[str] = "key_count"
 TOTAL_STORE_CONTENTS_SIZE_METRIC: Final[str] = "total_store_contents_size"
@@ -48,7 +49,7 @@ class ServerMetrics(object):
 
 
 class Server(object):
-    def __init__(self, worker_count: int = 10, port: int = 9000, in_test: bool = False):
+    def __init__(self, worker_count: int = 10, port: int = 9001):
         self.worker_count = worker_count
         self.port = port
         self.pool = ThreadPoolExecutor(worker_count)
@@ -56,7 +57,6 @@ class Server(object):
         self.key_value_store = {}
         self.metrics = ServerMetrics()
         self.terminated = False
-        self.in_test = in_test
 
     async def run(self):
         server = await asyncio.start_server(self.run_io_loop, host="127.0.0.1", port=self.port)
@@ -64,6 +64,7 @@ class Server(object):
             await server.serve_forever()
 
     def execute_get(self, cmd: pb2.GetCommand) -> pb2.Response:
+        logger.info(f"Executing GET command with {len(cmd.keys)} keys")
         with ReadLock(self.kv_rw_lock):
             key_values = {
                 key: self.key_value_store[key]
@@ -78,17 +79,23 @@ class Server(object):
         return pb2.Response(status="OK", message="OK", kv_list=kv_list)
 
     def execute_set(self, cmd: pb2.SetCommand) -> pb2.Response:
+        logger.info(f"Executing SET command with {len(cmd.key_values)} key values")
         updates_dict = {kv.key: kv.value for kv in cmd.key_values}
         key_list = pb2.KeyList()
         with WriteLock(self.kv_rw_lock):
+            last_total_size = reduce(
+                lambda a, b: a + b, 
+                [len(self.key_value_store.get(key, b"")) for key in updates_dict.keys()]
+            )
             self.key_value_store.update(updates_dict)
+        new_total_size = reduce(lambda a, b: a + b, [len(v) for v in updates_dict.values()])
         self.metrics.increment(KEYS_UPDATED_COUNT_METRIC, len(updates_dict))
-        total_size = reduce(lambda a, b: a + b, [len(v) for v in updates_dict.values()])
-        self.metrics.increment(TOTAL_STORE_CONTENTS_SIZE_METRIC, total_size)
+        self.metrics.increment(TOTAL_STORE_CONTENTS_SIZE_METRIC, new_total_size - last_total_size)
         key_list.keys.extend([kv.key for kv in cmd.key_values])
         return pb2.Response(status="OK", message="OK", key_list=key_list)
 
     def execute_delete(self, cmd: pb2.DeleteCommand) -> pb2.Response:
+        logger.info(f"Executing DELETE command with {len(cmd.keys)} keys")
         try:
             key_list = pb2.KeyList()
             keys_deleted = set()
@@ -105,9 +112,11 @@ class Server(object):
             kw_args = {"key_list": key_list} if len(key_list.keys) > 0 else {}
             return pb2.Response(status="OK", message="OK", **kw_args)
         except Exception as e:
+            logger.exception(e)
             raise e
 
     def execute_metrics(self, cmd: pb2.DeleteCommand) -> pb2.Response:
+        logger.info("Executing METRICS command")
         metrics = pb2.MetricsResponse()
         with ReadLock(self.kv_rw_lock):
             if cmd.get_key_count:
@@ -143,6 +152,7 @@ class Server(object):
     async def run_io_loop(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ):
+        logger.info("New client connected")
         while not self.terminated:
             try:
                 response = await self.handle_message(reader)
@@ -160,9 +170,9 @@ class Server(object):
                 raise
 
     async def handle_message(self, reader: asyncio.StreamReader) -> pb2.Response:
-        header_bytes = await reader.read(HEADER_SIZE)
+        header_bytes = await reader.readexactly(HEADER_SIZE)
         header = decode_header(header_bytes)
-        data = await reader.read(header.message_size)
+        data = await reader.readexactly(header.message_size)
         mw = MessageWrapper(header=header, data=data)
         running_loop = asyncio.get_event_loop()
         return await running_loop.run_in_executor(
@@ -170,7 +180,7 @@ class Server(object):
         )
 
     async def handle_response(
-        response: pb2.Response, self, writer: asyncio.StreamWriter
+        self, response: pb2.Response, writer: asyncio.StreamWriter
     ) -> None:
         header, data = encode_into_header_and_data_bytes(response)
         writer.write(header)
@@ -196,6 +206,7 @@ class Server(object):
                     f"Unexpected message type received {msg.__class__.__name__}"
                 )
         except Exception as e:
+            logger.exception("Error executing a message")
             return pb2.Response(status="ERROR", message=str(e))
 
     async def _close_stream(writer: asyncio.StreamWriter) -> None:

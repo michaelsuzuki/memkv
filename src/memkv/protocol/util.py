@@ -1,10 +1,10 @@
 import random
 import struct
+import time
 from dataclasses import dataclass
 from enum import IntEnum
 from functools import reduce
 from operator import concat
-import time
 from typing import Optional, Tuple, Union
 
 import memkv.protocol.memkv_pb2 as memkv_pb2
@@ -126,7 +126,15 @@ class RetryableException(Exception):
         self.cause = cause
 
 
-def with_backoff(logger, max_retries: int = 2, min_delay: int = 1, cap: int = 5000):
+class NoRetryException(Exception):
+    def __init__(self, cause):
+        self.cause = cause
+
+
+# This is a simple decorator that automatically retries a block of code
+# if it throws a RetryableException.  Since this code path doesn't need
+# to be performant, using a RetryableException is probably okay here
+def with_backoff(logger, max_retries: int = 5, min_delay: int = 1, cap: int = 5000):
     def inner(func):
         def wrapper(*args, **kwargs):
             retries = 0
@@ -135,12 +143,12 @@ def with_backoff(logger, max_retries: int = 2, min_delay: int = 1, cap: int = 50
                 try:
                     return func(*args, **kwargs)
                 except RetryableException as e:
-                    logger.info(f"Caught an exception that was retryable: {e}")
+                    logger.info(f"Caught an exception that was retryable on retry {retries}: {e}")
                     retries += 1
                     seconds_to_wait = backoff(retries, min_delay, cap) / 1000.0
                     actual_exception = e.cause
                     time.sleep(seconds_to_wait)
-            raise actual_exception
+            raise NoRetryException(actual_exception)
         return wrapper
 
     return inner

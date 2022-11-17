@@ -11,9 +11,9 @@ from memkv.protocol.util import (
     MessageHeader,
     MessageT,
     MessageWrapper,
-    encode_into_header_and_data_bytes,
     construct_message,
     decode_header,
+    encode_into_header_and_data_bytes,
     encode_str,
     get_type,
 )
