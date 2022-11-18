@@ -5,20 +5,26 @@ import click
 
 from memkv.server.server import Server
 
-log_format = "%(asctime)s::%(levelname)s::%(name)s::%(filename)s::%(lineno)d::%(message)s"
-logging.basicConfig(
-    level="INFO",
-    format=log_format
+log_format = (
+    "%(asctime)s::%(levelname)s::%(name)s::%(filename)s::%(lineno)d::%(message)s"
 )
+logging.basicConfig(level="INFO", format=log_format)
 logger = logging.getLogger(__name__)
 
 
 @click.command()
-@click.option("--port", default=9001, type=int, help="The port the server is listening on")
 @click.option(
-    "--worker-count", default=10, type=int, help="The number of workers to start the server with"
+    "--port", default=9001, type=int, help="The port the server is listening on"
 )
-@click.option("--debug", is_flag=True, default=False, help="Set this to enable debug logging")
+@click.option(
+    "--worker-count",
+    default=10,
+    type=int,
+    help="The number of workers to start the server with",
+)
+@click.option(
+    "--debug", is_flag=True, default=False, help="Set this to enable debug logging"
+)
 def main(port: int, worker_count: int, debug: bool):
     try:
         if debug:
