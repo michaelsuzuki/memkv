@@ -114,13 +114,13 @@ Because of the read write lock, we don't want this in the asyncio path and why w
 
 
 ## Alternate solutions and improvements:
-Currently we use a read write lock and prioritize writes.  This could lead to a starvation scenario where a lot of writes come in blocking reads.  Given that reads are supposed to significantly outweigh writes that is probably not a bit issue.
+Currently we use a read write lock and prioritize writes.  This could lead to a starvation scenario when a lot of writes come in blocking reads.  Given that reads are supposed to significantly outweigh writes that is probably not a big issue.
 
-We could do finer grained locking so that if there are no reads on a particular key, a lock could be taken on that key, and allow readers to access everything else.  This would be fairly costly and if there is a situation where there are multiple keys being updated in the same request we would need to figure out how to lock a bunch of keys at the same time (maybe a condition variable that checks a set of keys?).
+We could do finer grained locking so that if there are no reads on a particular key, a lock could be taken on that key and allow readers to access everything else.  This would be fairly costly and if there is a situation where there are multiple keys being updated at the same time we would need to figure out how to lock a bunch of keys at the same time (maybe a condition variable that checks a set of keys?).
 
 We could've used blocking IO instead of asyncio.  However, given this is a standalone server, the ability to handle large number of clients would make asyncio a more scalable choice in this instance.
 
-Why not http?  I considered http, but it has a lot of overhead in terms of what gets sent over the wire even if compressed.  Assuming we wanted a high throughput service, I believed that protocol buffers would be much faster and more efficient over the wire.  You biggest issue is that it makes it more difficult to debug due to the binary format.
+Why not http?  I considered http, but it has a lot of overhead in terms of what gets sent over the wire even if compressed.  Assuming we want a high throughput service, I believe that protocol buffers would be much faster and more efficient over the wire.  I belive the biggest issue is the difficulty to debug due to the binary format.
 
 Currently, this service is completely in the clear over the wire.  Ideally we would want to add ssl support.  Based on what I can tell that would not be to difficult to add in the future.
 
