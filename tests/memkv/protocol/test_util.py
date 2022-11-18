@@ -26,7 +26,7 @@ def get_command() -> memkv_pb2.GetCommand:
 def set_command() -> memkv_pb2.SetCommand:
     kv_list = [
         memkv_pb2.KeyValue(key="testKeyOne", value=encode_str("This is a test value")),
-        memkv_pb2.KeyValue(key="testKeyTwo", value=encode_str("Another test value"))
+        memkv_pb2.KeyValue(key="testKeyTwo", value=encode_str("Another test value")),
     ]
     command = memkv_pb2.SetCommand()
     command.key_values.extend(kv_list)
@@ -42,7 +42,9 @@ def response() -> memkv_pb2.Response:
 
 
 def metrics_command() -> memkv_pb2.MetricsCommand:
-    return memkv_pb2.MetricsCommand(get_key_count=True, get_total_store_contents_size=True)
+    return memkv_pb2.MetricsCommand(
+        get_key_count=True, get_total_store_contents_size=True
+    )
 
 
 def wrap_message(msg: MessageT) -> MessageWrapper:
@@ -52,24 +54,38 @@ def wrap_message(msg: MessageT) -> MessageWrapper:
 
 
 def assert_result(header: bytes, data: bytes, proto_obj: MessageT, expected: MessageT):
-    assert HEADER_SIZE == len(header), f"Header length should be 6 bytes found {len(header)}"
+    assert HEADER_SIZE == len(
+        header
+    ), f"Header length should be 6 bytes found {len(header)}"
     try:
         proto_obj.ParseFromString(data)
-        assert proto_obj.SerializeToString(deterministic=True) == \
-            expected.SerializeToString(deterministic=True)
+        assert proto_obj.SerializeToString(
+            deterministic=True
+        ) == expected.SerializeToString(deterministic=True)
         print(f"Parsing Data succeeded for {proto_obj}", file=sys.stderr)
     except Exception:
         pytest.fail()
 
 
-@pytest.mark.parametrize("command, assertion", [
-    (get_command(), lambda h, d, c: assert_result(h, d, memkv_pb2.GetCommand(), c)),
-    (set_command(), lambda h, d, c: assert_result(h, d, memkv_pb2.SetCommand(), c)),
-    (delete_command(), lambda h, d, c: assert_result(h, d, memkv_pb2.DeleteCommand(), c)),
-    (metrics_command(), lambda h, d, c: assert_result(h, d, memkv_pb2.MetricsCommand(), c)),
-    (response(), lambda h, d, c: assert_result(h, d, memkv_pb2.Response(), c)),
-])
-def test_construct_header_and_data(command: MessageT, assertion: Callable[[bytes, bytes, MessageT], None]):
+@pytest.mark.parametrize(
+    "command, assertion",
+    [
+        (get_command(), lambda h, d, c: assert_result(h, d, memkv_pb2.GetCommand(), c)),
+        (set_command(), lambda h, d, c: assert_result(h, d, memkv_pb2.SetCommand(), c)),
+        (
+            delete_command(),
+            lambda h, d, c: assert_result(h, d, memkv_pb2.DeleteCommand(), c),
+        ),
+        (
+            metrics_command(),
+            lambda h, d, c: assert_result(h, d, memkv_pb2.MetricsCommand(), c),
+        ),
+        (response(), lambda h, d, c: assert_result(h, d, memkv_pb2.Response(), c)),
+    ],
+)
+def test_construct_header_and_data(
+    command: MessageT, assertion: Callable[[bytes, bytes, MessageT], None]
+):
     header, data = encode_into_header_and_data_bytes(command)
     assertion(header, data, command)
 
@@ -83,19 +99,24 @@ def test_construct_header_and_data_with_bad_message_type():
         encode_into_header_and_data_bytes(bad_obj)
 
 
-@pytest.mark.parametrize("command", [
-    get_command(),
-    set_command(),
-    delete_command(),
-    metrics_command(),
-    response(),
-])
+@pytest.mark.parametrize(
+    "command",
+    [
+        get_command(),
+        set_command(),
+        delete_command(),
+        metrics_command(),
+        response(),
+    ],
+)
 def test_decode_header(command: MessageT):
     header_bytes, data_bytes = encode_into_header_and_data_bytes(command)
     header = decode_header(header_bytes)
     expected = len(data_bytes)
     found = header.message_size
-    assert found == expected, f"Message size was expected to be {expected} but was found to be {found}"
+    assert (
+        found == expected
+    ), f"Message size was expected to be {expected} but was found to be {found}"
 
 
 def test_decode_header_with_bad_byte_order():
@@ -114,13 +135,16 @@ def test_decode_header_with_too_few_bytes():
         decode_header(header)
 
 
-@pytest.mark.parametrize("message", [
-    wrap_message(get_command()),
-    wrap_message(set_command()),
-    wrap_message(delete_command()),
-    wrap_message(metrics_command()),
-    wrap_message(response()),
-])
+@pytest.mark.parametrize(
+    "message",
+    [
+        wrap_message(get_command()),
+        wrap_message(set_command()),
+        wrap_message(delete_command()),
+        wrap_message(metrics_command()),
+        wrap_message(response()),
+    ],
+)
 def test_construct_command(message: MessageWrapper):
     command = construct_message(message)
     assert command is not None

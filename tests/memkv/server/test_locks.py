@@ -13,7 +13,7 @@ def read_from_dict(
     key: str,
     lock: ReaderWriterLock,
     ops: Queue,
-    sleep_interval: int = 0.0
+    sleep_interval: int = 0.0,
 ) -> Any:
     curr_id = ThreadId()
     with ReadLock(lock):
@@ -29,7 +29,13 @@ def add_dict_item(key: str, value: str, _dict: Dict[str, Any]):
     _dict[key] = value
 
 
-def write_to_dict(shared_dict: Dict[str, Any], key: str, value: Any, lock: ReaderWriterLock, ops: Queue):
+def write_to_dict(
+    shared_dict: Dict[str, Any],
+    key: str,
+    value: Any,
+    lock: ReaderWriterLock,
+    ops: Queue,
+):
     curr_id = ThreadId()
     print(f"{curr_id} Waiting for WriteLock", file=sys.stderr)
     with WriteLock(lock):
@@ -56,17 +62,20 @@ def assert_read_and_writes_in_queue(queue: Queue, expected_write_count: int) -> 
             if write_occurred:
                 write_occurred = False
                 reads_following_write += 1
-                assert value == curr_write_value, \
-                    f"Expected value {curr_write_value} detected value: {value}"
+                assert (
+                    value == curr_write_value
+                ), f"Expected value {curr_write_value} detected value: {value}"
             else:
                 if reads_following_write > 0:
                     reads_following_write += 1
-                    assert value == curr_write_value, \
-                        f"Expected value {curr_write_value} detected value: {value}"
+                    assert (
+                        value == curr_write_value
+                    ), f"Expected value {curr_write_value} detected value: {value}"
                 else:
                     reads_before_any_writes += 1
-    assert writes_counted == expected_write_count, \
-        f"Expected write count {expected_write_count}, detected {writes_counted}"
+    assert (
+        writes_counted == expected_write_count
+    ), f"Expected write count {expected_write_count}, detected {writes_counted}"
 
 
 def test_reads_dont_block():
@@ -75,7 +84,10 @@ def test_reads_dont_block():
     pool = ThreadPoolExecutor(max_workers=10)
     shared_dict = {"foo": "bar"}
     ops = Queue()
-    futures = [pool.submit(read_from_dict, d, k, l, ops) for d, k, l in ([[shared_dict, "foo", rwl]] * 50)]
+    futures = [
+        pool.submit(read_from_dict, d, k, l, ops)
+        for d, k, l in ([[shared_dict, "foo", rwl]] * 50)
+    ]
     for future in as_completed(futures):
         assert future.result()[2] == "bar"
 
@@ -85,10 +97,19 @@ def test_writes_block_reads():
     pool = ThreadPoolExecutor(max_workers=10)
     shared_dict = {"foo": "before"}
     ops = Queue()
-    futures_1 = [pool.submit(read_from_dict, d, k, l, ops) for d, k, l in ([[shared_dict, "foo", rwl]] * 10)]
-    futures_2 = [pool.submit(read_from_dict, d, k, l, ops, .01) for d, k, l in ([[shared_dict, "foo", rwl]] * 5)]
+    futures_1 = [
+        pool.submit(read_from_dict, d, k, l, ops)
+        for d, k, l in ([[shared_dict, "foo", rwl]] * 10)
+    ]
+    futures_2 = [
+        pool.submit(read_from_dict, d, k, l, ops, 0.01)
+        for d, k, l in ([[shared_dict, "foo", rwl]] * 5)
+    ]
     futures_3 = [pool.submit(write_to_dict, shared_dict, "foo", "after", rwl, ops)]
-    futures_4 = [pool.submit(read_from_dict, d, k, l, ops, .025) for d, k, l in ([[shared_dict, "foo", rwl]] * 10)]
+    futures_4 = [
+        pool.submit(read_from_dict, d, k, l, ops, 0.025)
+        for d, k, l in ([[shared_dict, "foo", rwl]] * 10)
+    ]
     futures = flatten([futures_1, futures_2, futures_3, futures_4])
     _ = [future.result() for future in as_completed(futures)]
     assert_read_and_writes_in_queue(ops, 1)
@@ -99,11 +120,22 @@ def test_multiple_writes_block_reads():
     pool = ThreadPoolExecutor(max_workers=10)
     shared_dict = {"foo": "before"}
     ops = Queue()
-    futures_1 = [pool.submit(read_from_dict, d, k, l, ops) for d, k, l in ([[shared_dict, "foo", rwl]] * 10)]
+    futures_1 = [
+        pool.submit(read_from_dict, d, k, l, ops)
+        for d, k, l in ([[shared_dict, "foo", rwl]] * 10)
+    ]
     futures_2 = [pool.submit(write_to_dict, shared_dict, "foo", "after", rwl, ops)]
-    futures_3 = [pool.submit(read_from_dict, d, k, l, ops, .025) for d, k, l in ([[shared_dict, "foo", rwl]] * 10)]
-    futures_4 = [pool.submit(write_to_dict, shared_dict, "foo", "after_first", rwl, ops)]
-    futures_5 = [pool.submit(read_from_dict, d, k, l, ops) for d, k, l in ([[shared_dict, "foo", rwl]] * 10)]
+    futures_3 = [
+        pool.submit(read_from_dict, d, k, l, ops, 0.025)
+        for d, k, l in ([[shared_dict, "foo", rwl]] * 10)
+    ]
+    futures_4 = [
+        pool.submit(write_to_dict, shared_dict, "foo", "after_first", rwl, ops)
+    ]
+    futures_5 = [
+        pool.submit(read_from_dict, d, k, l, ops)
+        for d, k, l in ([[shared_dict, "foo", rwl]] * 10)
+    ]
     futures = flatten([futures_1, futures_2, futures_3, futures_4, futures_5])
     _ = [future.result() for future in as_completed(futures)]
     assert_read_and_writes_in_queue(ops, 2)

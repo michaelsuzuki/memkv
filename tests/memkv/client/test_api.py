@@ -42,14 +42,18 @@ def test_get_with_one_key(client):
     client.sd.recv.side_effect = [header_bytes, data_bytes]
     actual_key_values = client.get(["keyOne"])
     matches = [
-        kv.key in actual_key_values and kv.value == actual_key_values[kv.key] for kv in key_values
+        kv.key in actual_key_values and kv.value == actual_key_values[kv.key]
+        for kv in key_values
     ]
-    assert reduce(lambda a, b: a and b, matches), \
-        "One of the keys or values does not match what was expected!"
+    assert reduce(
+        lambda a, b: a and b, matches
+    ), "One of the keys or values does not match what was expected!"
 
 
 def test_get_with_multiple_keys(client):
-    expected_response = construct_response("OK", "OK", keyOne=b"valueOne", keyTwo=b"valueTwo")
+    expected_response = construct_response(
+        "OK", "OK", keyOne=b"valueOne", keyTwo=b"valueTwo"
+    )
     header_bytes, data_bytes = encode_into_header_and_data_bytes(expected_response)
     client.sd.recv.side_effect = [header_bytes, data_bytes]
     actual_key_values = client.get(["keyOne", "keyTwo"])
@@ -57,8 +61,9 @@ def test_get_with_multiple_keys(client):
         kv.key in actual_key_values and kv.value == actual_key_values[kv.key]
         for kv in expected_response.kv_list.key_values
     ]
-    assert reduce(lambda a, b: a and b, matches), \
-        "One of the keys or values does not match what was expected!"
+    assert reduce(
+        lambda a, b: a and b, matches
+    ), "One of the keys or values does not match what was expected!"
 
 
 def test_get_with_error_status(client):
@@ -92,7 +97,9 @@ def test_set_with_error_status(client):
     header_bytes, data_bytes = encode_into_header_and_data_bytes(response)
     client.sd.recv.side_effect = [header_bytes, data_bytes]
     with pytest.raises(ClientAPIException):
-        client.set({"keyOne": b"valueOne", "keyTwo": b"valueTwo", "keyThree": b"valueThree"})
+        client.set(
+            {"keyOne": b"valueOne", "keyTwo": b"valueTwo", "keyThree": b"valueThree"}
+        )
 
 
 def test_delete_one_key(client):
@@ -127,7 +134,7 @@ def test_metrics_command(client):
         total_store_contents_size=108,
         keys_read_count=15,
         keys_updated_count=12,
-        keys_deleted_count=3
+        keys_deleted_count=3,
     )
     response = pb2.Response(status="OK", message="OK", metrics=metrics)
     header_bytes, data_bytes = encode_into_header_and_data_bytes(response)
