@@ -73,7 +73,9 @@ class Client(object):
         if response.status == "OK":
             return {kv.key: kv.value for kv in response.kv_list.key_values}
         else:
-            raise ClientAPIException(f"Error processing GET request: {response.message}")
+            raise ClientAPIException(
+                f"Error processing GET request: {response.message}"
+            )
 
     def set(self, key_values: Dict[str, bytes]) -> List[str]:
         """Sets the keys to the values in **kwargs
@@ -84,14 +86,17 @@ class Client(object):
         returns: List of keys that got updated.
         """
         key_values = [
-            memkv_pb2.KeyValue(key=key, value=value) for key, value in key_values.items()
+            memkv_pb2.KeyValue(key=key, value=value)
+            for key, value in key_values.items()
         ]
         set_cmd = memkv_pb2.SetCommand(key_values=key_values)
         response = self.execute_command(set_cmd)
         if response.status == "OK":
             return [key for key in response.key_list.keys]
         else:
-            raise ClientAPIException(f"Error processing SET request: {response.message}")
+            raise ClientAPIException(
+                f"Error processing SET request: {response.message}"
+            )
 
     def delete(self, keys: List[str]) -> List[str]:
         """Attempts to delete provided keys from store
@@ -104,7 +109,9 @@ class Client(object):
         if response.status == "OK":
             return [key for key in response.key_list.keys]
         else:
-            raise ClientAPIException(f"Error processing DELETE request: {response.message}")
+            raise ClientAPIException(
+                f"Error processing DELETE request: {response.message}"
+            )
 
     def metrics(
         self,
@@ -112,7 +119,7 @@ class Client(object):
         get_total_store_contents_size: bool = True,
         get_keys_read_count: bool = True,
         get_keys_updated_count: bool = True,
-        get_keys_deleted_count: bool = True
+        get_keys_deleted_count: bool = True,
     ) -> memkv_pb2.MetricsResponse:
         metrics_cmd = memkv_pb2.MetricsCommand(
             get_key_count=get_key_count,
@@ -123,7 +130,9 @@ class Client(object):
         )
         response = self.execute_command(metrics_cmd)
         if response.status != "OK":
-            raise ClientAPIException(f"Error executing the metrics request: {response.message}")
+            raise ClientAPIException(
+                f"Error executing the metrics request: {response.message}"
+            )
         return response.metrics
 
     def close(self):

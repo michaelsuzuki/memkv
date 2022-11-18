@@ -59,7 +59,9 @@ class Server(object):
         self.terminated = False
 
     async def run(self):
-        server = await asyncio.start_server(self.run_io_loop, host="127.0.0.1", port=self.port)
+        server = await asyncio.start_server(
+            self.run_io_loop, host="127.0.0.1", port=self.port
+        )
         async with server:
             await server.serve_forever()
 
@@ -84,13 +86,20 @@ class Server(object):
         key_list = pb2.KeyList()
         with WriteLock(self.kv_rw_lock):
             last_total_size = reduce(
-                lambda a, b: a + b, 
-                [len(self.key_value_store.get(key, b"")) for key in updates_dict.keys()]
+                lambda a, b: a + b,
+                [
+                    len(self.key_value_store.get(key, b""))
+                    for key in updates_dict.keys()
+                ],
             )
             self.key_value_store.update(updates_dict)
-        new_total_size = reduce(lambda a, b: a + b, [len(v) for v in updates_dict.values()])
+        new_total_size = reduce(
+            lambda a, b: a + b, [len(v) for v in updates_dict.values()]
+        )
         self.metrics.increment(KEYS_UPDATED_COUNT_METRIC, len(updates_dict))
-        self.metrics.increment(TOTAL_STORE_CONTENTS_SIZE_METRIC, new_total_size - last_total_size)
+        self.metrics.increment(
+            TOTAL_STORE_CONTENTS_SIZE_METRIC, new_total_size - last_total_size
+        )
         key_list.keys.extend([kv.key for kv in cmd.key_values])
         return pb2.Response(status="OK", message="OK", key_list=key_list)
 

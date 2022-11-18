@@ -27,7 +27,7 @@ def main(port: int, worker_count: int, debug: bool):
         logger.info(f"Starting up server on port {port}")
         server = Server(worker_count=worker_count, port=port)
         asyncio.run(server.run())
-        logger.info(f"Server is executing gracefully")
+        logger.info("Server is executing gracefully")
     except KeyboardInterrupt:
         server.terminate()
     finally:

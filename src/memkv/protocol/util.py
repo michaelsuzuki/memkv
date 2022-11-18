@@ -143,12 +143,15 @@ def with_backoff(logger, max_retries: int = 5, min_delay: int = 1, cap: int = 50
                 try:
                     return func(*args, **kwargs)
                 except RetryableException as e:
-                    logger.info(f"Caught an exception that was retryable on retry {retries}: {e}")
+                    logger.info(
+                        f"Caught an exception that was retryable on retry {retries}: {e}"
+                    )
                     retries += 1
                     seconds_to_wait = backoff(retries, min_delay, cap) / 1000.0
                     actual_exception = e.cause
                     time.sleep(seconds_to_wait)
             raise NoRetryException(actual_exception)
+
         return wrapper
 
     return inner

@@ -8,7 +8,13 @@ from memkv.protocol.util import flatten
 from memkv.server.locks import ReaderWriterLock, ReadLock, ThreadId, WriteLock
 
 
-def read_from_dict(shared_dict: Dict[str, Any], key: str, lock: ReaderWriterLock, ops: Queue, sleep_interval: int = 0.0) -> Any:
+def read_from_dict(
+    shared_dict: Dict[str, Any],
+    key: str,
+    lock: ReaderWriterLock,
+    ops: Queue,
+    sleep_interval: int = 0.0
+) -> Any:
     curr_id = ThreadId()
     with ReadLock(lock):
         print("{curr_id}: Acquired ReadLock", file=sys.stderr)
@@ -50,14 +56,17 @@ def assert_read_and_writes_in_queue(queue: Queue, expected_write_count: int) -> 
             if write_occurred:
                 write_occurred = False
                 reads_following_write += 1
-                assert value == curr_write_value, f"Expected value {curr_write_value} detected value: {value}"
+                assert value == curr_write_value, \
+                    f"Expected value {curr_write_value} detected value: {value}"
             else:
                 if reads_following_write > 0:
                     reads_following_write += 1
-                    assert value == curr_write_value, f"Expected value {curr_write_value} detected value: {value}"
+                    assert value == curr_write_value, \
+                        f"Expected value {curr_write_value} detected value: {value}"
                 else:
                     reads_before_any_writes += 1
-    assert writes_counted == expected_write_count, f"Expected write count {expected_write_count}, detected {writes_counted}"
+    assert writes_counted == expected_write_count, \
+        f"Expected write count {expected_write_count}, detected {writes_counted}"
 
 
 def test_reads_dont_block():

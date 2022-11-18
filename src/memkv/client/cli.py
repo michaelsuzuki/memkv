@@ -1,7 +1,7 @@
 import logging
 import re
 import shlex
-from typing import Callable, Dict, Final, List, Union, Type
+from typing import Callable, Dict, Final, List, Type, Union
 
 import click
 from prompt_toolkit import PromptSession, print_formatted_text
@@ -14,20 +14,21 @@ PARSED_ARGS_T: Final[Type] = Union[List[str], Dict[str, bytes]]
 
 version: Final[str] = "0.1"
 
+
 class ParseArgsError(Exception):
     pass
 
 
-log_format: Final[str] = \
-    "%(asctime)s::%(levelname)s::%(name)s::%(filename)s::%(lineno)d::%(message)s"
+log_format: Final[
+    str
+] = "%(asctime)s::%(levelname)s::%(name)s::%(filename)s::%(lineno)d::%(message)s"
 
-logging.basicConfig(
-    level="INFO",
-    format=log_format
-)
+logging.basicConfig(level="INFO", format=log_format)
 logger: Final[str] = logging.getLogger(__name__)
 
-cmd_pat: Final[re.Pattern] = re.compile(r"^\s*(GET|SET|DELETE|METRICS)\s*", re.IGNORECASE)
+cmd_pat: Final[re.Pattern] = re.compile(
+    r"^\s*(GET|SET|DELETE|METRICS)\s*", re.IGNORECASE
+)
 
 
 class MisMatchedArgsError(Exception):
@@ -66,7 +67,9 @@ def execute_get(client: Client, keys: List[str]) -> None:
         for key, value in key_values.items():
             print_formatted_text(f"  {key} = {value}")
     except Exception as e:
-        print_formatted_text(f"Error retrieving values for keys: {e.__class__.__name__}")
+        print_formatted_text(
+            f"Error retrieving values for keys: {e.__class__.__name__}"
+        )
 
 
 def parse_args_string(
@@ -107,7 +110,9 @@ def execute_metrics(client: Client):
         print_formatted_text(f"  keys_read_count    = {metrics.keys_read_count}")
         print_formatted_text(f"  keys_updated_count = {metrics.keys_updated_count}")
         print_formatted_text(f"  keys_deleted_count = {metrics.keys_deleted_count}")
-        print_formatted_text(f"  total_store_size   = {metrics.total_store_contents_size}")
+        print_formatted_text(
+            f"  total_store_size   = {metrics.total_store_contents_size}"
+        )
     except Exception as e:
         print_formatted_text(f"Failed to get metrics from the store: {e}")
 
@@ -129,14 +134,21 @@ def process_input(ctx, session: PromptSession, input: str, client: Client):
     cmd_and_args = input.split(" ", 1)
     cmd = cmd_and_args[0].strip().upper()
     if cmd == "GET":
-        execute_get(client, parse_args_string(get_args_string(cmd_and_args), parse_keys))
+        execute_get(
+            client, parse_args_string(get_args_string(cmd_and_args), parse_keys)
+        )
     elif cmd == "SET":
         try:
-            execute_set(client, parse_args_string(get_args_string(cmd_and_args), parse_key_values))
+            execute_set(
+                client,
+                parse_args_string(get_args_string(cmd_and_args), parse_key_values),
+            )
         except ParseArgsError as e:
             print_formatted_text(f"Error for cmd {cmd}: {e}")
     elif cmd == "DELETE":
-        execute_delete(client, parse_args_string(get_args_string(cmd_and_args), parse_keys))
+        execute_delete(
+            client, parse_args_string(get_args_string(cmd_and_args), parse_keys)
+        )
     elif cmd == "METRICS":
         execute_metrics(client)
     elif cmd in ("QUIT", "Q"):
@@ -175,27 +187,34 @@ def process_cmd_with_args(client: Client, cmd: str, args: PARSED_ARGS_T):
     "--host",
     default="127.0.0.1",
     type=str,
-    help="The name of the memkv host you want to connect to"
+    help="The name of the memkv host you want to connect to",
 )
 @click.option(
     "--port",
     default=9001,
     type=int,
-    help="The port that the memkv server is listening to"
+    help="The port that the memkv server is listening to",
 )
 @click.option(
-    "--debug", is_flag=True, default=False, help="Set this if you want more verbose logging"
+    "--debug",
+    is_flag=True,
+    default=False,
+    help="Set this if you want more verbose logging",
 )
 @click.argument(
-    "cmd", nargs=1, type=click.Choice(["GET", "SET", "DELETE", "METRICS"], case_sensitive=False)
+    "cmd",
+    nargs=1,
+    type=click.Choice(["GET", "SET", "DELETE", "METRICS"], case_sensitive=False),
 )
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
-def main(ctx, host: str, port: int, cmd: str, args: List[Union[str, bytes]], debug: bool):
+def main(
+    ctx, host: str, port: int, cmd: str, args: List[Union[str, bytes]], debug: bool
+):
     """This cli allows one to interact with a memkv server.
 
     You may interact the server by starting the client and sending commands
-    when prompted.  The commands are as follows:\n 
+    when prompted.  The commands are as follows:\n
     \b
        GET:
             Retrieves any values stored by the provided keys if any.
@@ -205,12 +224,12 @@ def main(ctx, host: str, port: int, cmd: str, args: List[Union[str, bytes]], deb
             interpreted correctly.  All keys found in the store will be returned and displayed.
             If a key is not present on return, it means the key doesn't have a value in the
             store.
-       SET: 
+       SET:
             Sets the key(s) to the provided value(s)
             At the prompt type: SET {key1} {value1} ... {keyN} {valueN}
             Each token should be space separated with key immediately followed by the value to
             write to that key.  If the key or value has spaces then it must be double quoted so they
-            are interpreted correctly.  Note that values are all considered binary representations so
+            are interpreted correctly.  Note that values are all treated as binary strings so
             use the appropriate hex escapes to encode non printable values.
         DELETE:
             Deletes the provided keys from the memory store.

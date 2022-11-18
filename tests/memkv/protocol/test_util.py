@@ -55,9 +55,10 @@ def assert_result(header: bytes, data: bytes, proto_obj: MessageT, expected: Mes
     assert HEADER_SIZE == len(header), f"Header length should be 6 bytes found {len(header)}"
     try:
         proto_obj.ParseFromString(data)
-        assert proto_obj.SerializeToString(deterministic=True) == expected.SerializeToString(deterministic=True)
+        assert proto_obj.SerializeToString(deterministic=True) == \
+            expected.SerializeToString(deterministic=True)
         print(f"Parsing Data succeeded for {proto_obj}", file=sys.stderr)
-    except Exception as e:
+    except Exception:
         pytest.fail()
 
 
